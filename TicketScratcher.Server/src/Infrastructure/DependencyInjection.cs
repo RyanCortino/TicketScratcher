@@ -1,39 +1,57 @@
-﻿using TicketScratcher.Server.Application.Common.Interfaces;
-using TicketScratcher.Server.Domain.Constants;
-using TicketScratcher.Server.Infrastructure.Data;
-using TicketScratcher.Server.Infrastructure.Data.Interceptors;
-using TicketScratcher.Server.Infrastructure.Identity;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using TicketScratcher.Server.Application.Common.Extensions;
+using TicketScratcher.Server.Application.Common.Interfaces;
+using TicketScratcher.Server.Domain.Constants;
+using TicketScratcher.Server.Infrastructure.Data;
+using TicketScratcher.Server.Infrastructure.Data.Interceptors;
+using TicketScratcher.Server.Infrastructure.Identity;
+using TicketScratcher.Server.Infrastructure.Options;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructureServices(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
-        Guard.Against.Null(connectionString, message: "Connection string 'DefaultConnection' not found.");
+        Guard.Against.Null(
+            connectionString,
+            message: "Connection string 'DefaultConnection' not found."
+        );
+
+        services
+            .AddOptions<EmailOptions>()
+            .Bind(configuration.GetRequiredSection(EmailOptions.SectionName))
+            .ValidatFluently()
+            .ValidateOnStart();
 
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
         services.AddScoped<ISaveChangesInterceptor, DispatchDomainEventsInterceptor>();
 
-        services.AddDbContext<ApplicationDbContext>((sp, options) =>
-        {
-            options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+        services.AddDbContext<ApplicationDbContext>(
+            (sp, options) =>
+            {
+                options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
 
-            options.UseSqlServer(connectionString);
-        });
+                options.UseSqlServer(connectionString);
+            }
+        );
 
-        services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IApplicationDbContext>(
+            provider => provider.GetRequiredService<ApplicationDbContext>()
+        );
 
         services.AddScoped<ApplicationDbContextInitialiser>();
 
-        services.AddAuthentication()
-            .AddBearerToken(IdentityConstants.BearerScheme);
+        services.AddAuthentication().AddBearerToken(IdentityConstants.BearerScheme);
 
         services.AddAuthorizationBuilder();
 
@@ -43,11 +61,18 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddApiEndpoints();
 
+        services.AddValidatorsFromAssemblyContaining<EmailOptions>(ServiceLifetime.Transient);
+
         services.AddSingleton(TimeProvider.System);
         services.AddTransient<IIdentityService, IdentityService>();
 
-        services.AddAuthorization(options =>
-            options.AddPolicy(Policies.CanPurge, policy => policy.RequireRole(Roles.Administrator)));
+        services.AddAuthorization(
+            options =>
+                options.AddPolicy(
+                    Policies.CanPurge,
+                    policy => policy.RequireRole(Roles.Administrator)
+                )
+        );
 
         return services;
     }
