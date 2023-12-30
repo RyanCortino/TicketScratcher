@@ -1,5 +1,7 @@
 ﻿using FluentValidation;
+using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -9,6 +11,7 @@ using TicketScratcher.Server.Domain.Constants;
 using TicketScratcher.Server.Infrastructure.Data;
 using TicketScratcher.Server.Infrastructure.Data.Interceptors;
 using TicketScratcher.Server.Infrastructure.Identity;
+using TicketScratcher.Server.Infrastructure.Messages;
 using TicketScratcher.Server.Infrastructure.Options;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -64,7 +67,14 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<EmailOptions>(ServiceLifetime.Transient);
 
         services.AddSingleton(TimeProvider.System);
+
         services.AddTransient<IIdentityService, IdentityService>();
+
+        services.AddTransient<IMessageBuilder, MimeMessageBuilder>();
+
+        services.AddTransient<ISmtpClient, SmtpClient>();
+
+        services.AddTransient<IEmailSender, EmailSender>();
 
         services.AddAuthorization(
             options =>
