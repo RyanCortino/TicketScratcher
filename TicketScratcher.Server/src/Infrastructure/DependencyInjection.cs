@@ -36,6 +36,8 @@ public static class DependencyInjection
             .ValidatFluently()
             .ValidateOnStart();
 
+        services.AddValidatorsFromAssemblyContaining<EmailOptions>(ServiceLifetime.Transient);
+
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
         services.AddScoped<ISaveChangesInterceptor, DispatchDomainEventsInterceptor>();
 
@@ -63,8 +65,6 @@ public static class DependencyInjection
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddApiEndpoints();
-
-        services.AddValidatorsFromAssemblyContaining<EmailOptions>(ServiceLifetime.Transient);
 
         services.AddSingleton(TimeProvider.System);
 
